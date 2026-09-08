@@ -1,0 +1,8 @@
+node_modules/
+pkg/
+dist/
+config.json
+aep-client.log
+*.log
+.env
+.env.local

@@ -1,0 +1,81 @@
+<div class="editor">
+  <header class="editor-header">
+    <div class="header-top">
+      <div>
+        <h1>Login Activities</h1>
+        <p>Every SSO login attempt pushed by the aep-client wrapper, newest first.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-secondary" (click)="load()" [disabled]="loading">Refresh</button>
+        <button class="btn-secondary" (click)="exportJson()" [disabled]="filtered().length === 0">Export JSON</button>
+        <a class="btn-add" routerLink="/admin/app-configs" style="text-decoration:none;display:inline-block;">App Configs</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="editor-error" *ngIf="error">{{ error }}</div>
+
+  <div class="toolbar">
+    <input class="search" type="search" placeholder="Search by app, user, email, IP…"
+           [value]="searchQuery" (input)="searchQuery = ($any($event.target)).value" />
+
+    <select [value]="statusFilter" (change)="statusFilter = ($any($event.target)).value">
+      <option value="">All statuses</option>
+      <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+    </select>
+
+    <select [value]="appIdFilter" (change)="appIdFilter = ($any($event.target)).value">
+      <option value="">All apps</option>
+      <option *ngFor="let a of uniqueApps" [value]="a">{{ a }}</option>
+    </select>
+
+    <span class="count">{{ filtered().length }} of {{ activities().length }}</span>
+  </div>
+
+  <table class="editor-table" *ngIf="!loading">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>App</th>
+        <th>User</th>
+        <th>Email</th>
+        <th>Company</th>
+        <th>IP</th>
+        <th>Status</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of filtered(); trackBy: trackById">
+        <td><code class="mono">{{ r.ts | date: 'yyyy-MM-dd HH:mm:ss' }}</code></td>
+        <td>
+          <code class="mono" *ngIf="r.appId">{{ r.appId }}</code>
+          <span *ngIf="!r.appId">—</span>
+          <div class="muted" *ngIf="r.appName">{{ r.appName }}</div>
+        </td>
+        <td>{{ r.username || '—' }}</td>
+        <td>{{ r.email || '—' }}</td>
+        <td>{{ r.company || '—' }}</td>
+        <td><code class="mono">{{ r.ip || '—' }}</code></td>
+        <td>
+          <span class="badge"
+                [class.badge-ok]="r.status === 'success'"
+                [class.badge-err]="r.status !== 'success'">
+            {{ r.status }}
+          </span>
+        </td>
+        <td class="truncate" [title]="r.error || ''">{{ r.error || '' }}</td>
+      </tr>
+      <tr *ngIf="filtered().length === 0">
+        <td colspan="8" class="empty">
+          {{ activities().length === 0 ? 'No activities yet. Run a login through aep-client to populate.' : 'No activities match your filters.' }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading activities…</p>
+  </div>
+</div>

@@ -1,0 +1,27 @@
+.editor { font-family: system-ui, sans-serif; max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+.editor-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; }
+.header-top { display:flex; width:100%; justify-content:space-between; align-items:flex-end; }
+.header-actions { display:flex; gap:8px; }
+.editor h1 { margin: 0 0 4px 0; font-size: 1.5rem; }
+.editor p  { margin: 0; color: #6b7280; font-size: 0.9rem; }
+.btn-secondary, .btn-add { background:#fff; border:1px solid #d1d5db; border-radius:6px; padding:6px 12px; cursor:pointer; color:#111827; }
+.btn-add { background:#0066cc; color:#fff; border-color:#0066cc; }
+.btn-secondary:disabled { opacity:0.5; cursor:not-allowed; }
+.editor-error { background:#fee2e2; color:#991b1b; padding:8px 12px; border-radius:6px; margin: 8px 0; }
+.toolbar { display:flex; gap:8px; align-items:center; margin: 12px 0; }
+.search { flex:1; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; }
+.toolbar select { padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; }
+.count { color:#6b7280; font-size:0.85rem; }
+.editor-table { width:100%; border-collapse: collapse; }
+.editor-table th, .editor-table td { border-bottom:1px solid #e5e7eb; padding:8px; text-align:left; font-size: 0.9rem; vertical-align: top; }
+.editor-table th { background:#f9fafb; font-weight:600; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.muted { color:#6b7280; font-size:0.8rem; }
+.badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.75rem; background:#e5e7eb; color:#374151; }
+.badge-ok { background:#d1fae5; color:#065f46; }
+.badge-err { background:#fee2e2; color:#991b1b; }
+.truncate { max-width: 240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.empty { text-align:center; color:#6b7280; padding: 24px !important; }
+.loading-state { display:flex; flex-direction:column; align-items:center; padding: 24px; color:#6b7280; }
+.spinner { width:32px; height:32px; border:3px solid #e5e7eb; border-top-color:#0066cc; border-radius:50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

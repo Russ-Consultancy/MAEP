@@ -1,0 +1,18 @@
+{
+  "port": 5001,
+  "brokerOrigin": "http://localhost:4200",
+  "appId": "my-angular-app",
+  "appName": "My Angular App",
+  "appJwtSecret": "change-me-in-prod",
+  "logFile": "aep-client.log",
+  "brokerActivitiesUrl": "http://localhost:3000/api/activities",
+  "tokenExpiresInMinutes": 10,
+  "compositeToken": {
+    "enabled": true,
+    "appIdPrefixLen": 7,
+    "appNamePrefixLen": 4,
+    "randomLen": 1,
+    "separator": "-",
+    "randomAlphabet": "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+  }
+}

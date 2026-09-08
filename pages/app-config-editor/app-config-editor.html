@@ -1,0 +1,119 @@
+<div class="editor">
+  <header class="editor-header">
+    <div class="header-top">
+      <div>
+        <h1>Applications</h1>
+        <p>Each row is one application that uses this shared PingOne login service.</p>
+      </div>
+      <div class="header-actions">
+        <label class="btn-import">
+          Import JSON
+          <input type="file" accept="application/json" (change)="importJson($event)" />
+        </label>
+        <button class="btn-secondary" (click)="exportJson()" [disabled]="configs().length === 0">Export JSON</button>
+        <button class="btn-add" (click)="add()" *ngIf="mode === 'list'">+ New Application</button>
+        <a class="btn-secondary" routerLink="/admin/activities" *ngIf="mode === 'list'" style="text-decoration:none;display:inline-block;">Activities</a>
+        <button class="btn-secondary" (click)="signOut()" *ngIf="mode === 'list'">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="editor-error" *ngIf="error">{{ error }}</div>
+
+  <!-- LIST MODE -->
+  <div class="toolbar" *ngIf="mode === 'list'">
+    <input
+      class="search"
+      type="search"
+      placeholder="Search by app id, name, or endpoint…"
+      [value]="searchQuery"
+      (input)="searchQuery = ($any($event.target)).value"
+    />
+    <span class="count">{{ filtered().length }} of {{ configs().length }}</span>
+  </div>
+
+  <table class="editor-table" *ngIf="mode === 'list' && !loading">
+    <thead>
+      <tr>
+        <th>App ID</th>
+        <th>Name</th>
+        <th>SSO Endpoint</th>
+        <th>Default Route</th>
+        <th>Allowed Return URLs</th>
+        <th>Status</th>
+        <th style="width:220px">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let c of filtered(); trackBy: trackById">
+        <td><code class="mono">{{ c.appId }}</code></td>
+        <td>{{ c.appName }}</td>
+        <td class="truncate">{{ c.ssoLoginEndpoint }}</td>
+        <td><code class="mono">{{ c.defaultPostLoginRoute }}</code></td>
+        <td class="truncate">{{ (c.allowedReturnUrls || []).join(', ') || '—' }}</td>
+        <td>
+          <span class="badge" [class.badge-ok]="statuses()[c.appId]?.ok" [class.badge-err]="!statuses()[c.appId]?.ok">
+            {{ statuses()[c.appId]?.detail || 'Not tested' }}
+          </span>
+        </td>
+        <td>
+          <button class="btn-sm" (click)="edit(c)">Edit</button>
+          <button class="btn-sm" (click)="testEndpoint(c)" [disabled]="testing()[c.appId]">
+            {{ testing()[c.appId] ? 'Testing…' : 'Test' }}
+          </button>
+          <button class="btn-sm btn-danger" (click)="remove(c)">Delete</button>
+        </td>
+      </tr>
+      <tr *ngIf="filtered().length === 0">
+        <td colspan="7" class="empty">
+          {{ searchQuery ? 'No applications match your search.' : 'No applications configured yet. Create one to get started.' }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading applications…</p>
+  </div>
+
+  <!-- FORM MODE -->
+  <form class="editor-form" *ngIf="mode === 'form'" (ngSubmit)="save()">
+    <h2>{{ isNew ? 'New Application' : 'Edit ' + form.appId }}</h2>
+
+    <div class="grid">
+      <label class="required">App ID (used in ?app=)
+        <input [(ngModel)]="form.appId" name="appId" [disabled]="!isNew" required placeholder="hr-portal" />
+        <span class="hint">Unique key, e.g. hr-portal. Cannot be changed after creation.</span>
+      </label>
+      <label class="required">Display Name
+        <input [(ngModel)]="form.appName" name="appName" required placeholder="HR Portal" />
+      </label>
+      <label class="required">SSO Login Endpoint
+        <input [(ngModel)]="form.ssoLoginEndpoint" name="ssoLoginEndpoint" required placeholder="https://app.example.com/api/auth/sso-login" />
+        <span class="hint">The broker POSTs Ping identity claims here after successful login.</span>
+      </label>
+      <label>Default Post-Login Route
+        <input [(ngModel)]="form.defaultPostLoginRoute" name="defaultPostLoginRoute" placeholder="/dashboard" />
+      </label>
+      <label>Backend API URL
+        <input [(ngModel)]="form.backendApiUrl" name="backendApiUrl" placeholder="https://app.example.com" />
+        <span class="hint">Empty when the app is proxied.</span>
+      </label>
+      <label>Allowed Return URLs (comma-separated)
+        <input [(ngModel)]="returnUrlsText" name="returnUrlsText" placeholder="https://app.example.com, https://localhost:5001" />
+        <span class="hint">Origins the broker may redirect back to after login. Required for security.</span>
+      </label>
+    </div>
+
+    <p class="shared-note">
+      PingOne OIDC is configured once in <code>auth.config.ts</code> and shared by all apps — no per-app OIDC
+      fields here.
+    </p>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
+      <button type="button" class="btn-secondary" (click)="cancel()" [disabled]="saving">Cancel</button>
+    </div>
+  </form>
+</div>
