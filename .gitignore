@@ -1,4 +1,14 @@
-/dist
 /node_modules
-/backend/data
+/backend/node_modules
+/aep-client/node_modules
+/dist/
+/dist-broker/
+backend/data
+.env
+.env.*
 *.log
+aep-client.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
