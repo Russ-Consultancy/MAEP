@@ -75,6 +75,7 @@ export class AuthService {
       throw new Error('No application configuration loaded. Visit /login?app=<appId>.');
     }
     const safeTarget = (targetUrl && targetUrl !== 'undefined') ? targetUrl : '';
+    console.log('[AEP] login: storing returnUrl =', JSON.stringify(safeTarget), 'for appId', this.activeApp.appId);
     sessionStorage.setItem(this.returnUrlKey, safeTarget);
     this.oauthService.initCodeFlow();
   }
@@ -134,14 +135,27 @@ export class AuthService {
     sessionStorage.removeItem(this.appIdKey);
 
     const fallbackRoute = this.activeApp.defaultPostLoginRoute || '/dashboard';
+    const allowed = this.activeApp.allowedReturnUrls || [];
 
     if (returnUrl && returnUrl !== 'undefined' && this.isReturnUrlAllowed(returnUrl)) {
+      console.log('[AEP] completeLogin: redirecting to returnUrl', returnUrl);
       this.redirectToApp(returnUrl, response.access_token, response.compositeToken, response.expires_at);
     } else {
       if (returnUrl && returnUrl !== 'undefined') {
-        console.warn('Blocked unauthorized returnUrl redirect:', returnUrl);
+        console.warn('[AEP] completeLogin: blocked returnUrl', returnUrl, 'falling back to', fallbackRoute);
+      } else {
+        console.log('[AEP] completeLogin: no returnUrl, falling back to', fallbackRoute);
       }
-      this.redirectToApp(fallbackRoute, response.access_token, response.compositeToken, response.expires_at, true);
+      let fallbackTarget: string;
+      if (allowed.length > 0) {
+        const baseOrigin = new URL(allowed[0]).origin;
+        const path = fallbackRoute.startsWith('/') ? fallbackRoute : '/' + fallbackRoute;
+        fallbackTarget = baseOrigin + path;
+      } else {
+        fallbackTarget = window.location.origin + fallbackRoute;
+      }
+      console.log('[AEP] completeLogin: fallback target', fallbackTarget);
+      this.redirectToApp(fallbackTarget, response.access_token, response.compositeToken, response.expires_at);
     }
     return true;
   }
@@ -241,23 +255,16 @@ export class AuthService {
     }
   }
 
-  private redirectToApp(url: string, token: string, compositeToken?: string | null, expiresAt?: string | null, isRelative = false): void {
-    let target: string;
-    if (isRelative || !/^https?:\/\//i.test(url)) {
-      const base = window.location.origin;
-      const path = url.startsWith('/') ? url : '/' + url;
-      target = base + path;
-    } else {
-      target = url;
-    }
-    const sep = target.includes('?') ? '&' : '?';
-    target = `${target}${sep}token=${encodeURIComponent(token)}`;
+  private redirectToApp(url: string, token: string, compositeToken?: string | null, expiresAt?: string | null): void {
+    const sep = url.includes('?') ? '&' : '?';
+    let target = `${url}${sep}token=${encodeURIComponent(token)}`;
     if (compositeToken) {
       target += `&compositeToken=${encodeURIComponent(compositeToken)}`;
     }
     if (expiresAt) {
       target += `&expires_at=${encodeURIComponent(expiresAt)}`;
     }
+    console.log('[AEP] redirectToApp: final target', target);
     window.location.href = target;
   }
 

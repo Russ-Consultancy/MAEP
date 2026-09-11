@@ -126,9 +126,12 @@ export class AuthCallbackComponent {
     }
 
     try {
+      console.log('[AEP] auth-callback: calling completeLogin, code=', !!code, 'state=', !!state);
       const isAuthenticated = await this.auth.completeLogin();
+      console.log('[AEP] auth-callback: completeLogin returned', isAuthenticated);
 
       if (!isAuthenticated) {
+        console.warn('[AEP] auth-callback: completeLogin returned false, redirecting to /login');
         await this.router.navigate(['/login'], {
           queryParams: {
             authError:
@@ -137,7 +140,7 @@ export class AuthCallbackComponent {
         });
       }
     } catch (err: any) {
-      console.error('Callback processing error:', err);
+      console.error('[AEP] auth-callback: completeLogin threw', err);
       const details =
         err?.error?.detail || err?.error || err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
       const authError = `The authorization response was rejected. Details: ${details}`;

@@ -58,11 +58,13 @@ export class LoginComponent {
     this.isLoading = true;
 
     try {
+      console.log('[AEP] login.component: calling auth.login with returnUrl =', JSON.stringify(this.returnUrl));
       await this.auth.login(this.returnUrl || undefined);
-    } catch {
+    } catch (err: any) {
       this.error = true;
       this.errorMessage = 'Unable to start Ping sign-in. Verify the OIDC settings for this application.';
       this.isLoading = false;
+      console.error('[AEP] login.component: auth.login failed', err);
     }
   }
 }

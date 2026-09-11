@@ -140,6 +140,17 @@ registered. Make sure they are identical (case-sensitive).
 The broker admin needs to add your app's origin (e.g. `http://localhost:3000`)
 to the **Allowed return URLs** list for your app.
 
+**After I sign in, the browser bounces me straight back to the SSO sign-in page**
+This is a redirect loop: your app is receiving the token in the return URL but
+not saving it before checking again. Causes and fixes:
+
+1. Make sure your `index.html` loads `aep-auth.js` **before** `aep-guard.js`
+   (the order in the Step 4 example matters).
+2. Make sure `aep-wrapper.exe` is the current version, and restart it after
+   replacing the binary.
+3. Hard-refresh your app page (Ctrl+F5) so the browser fetches the latest
+   scripts from the wrapper instead of using a cached copy.
+
 **The browser shows "Failed to load resource: net::ERR_CONNECTION_REFUSED" on the script tags**
 The wrapper isn't running, or the URL in your `<script src="…">` doesn't match
 the wrapper's actual address.

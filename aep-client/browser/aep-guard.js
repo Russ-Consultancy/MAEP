@@ -75,6 +75,12 @@
     }
     _evaluate(cfg) {
       if (this._redirecting) return;
+      // Make sure a ?token=… still sitting in the URL is captured into
+      // sessionStorage before we decide whether to redirect (the helper only
+      // parses the URL when asked).
+      if (window.AepAuth && typeof window.AepAuth.getToken === 'function') {
+        try { window.AepAuth.getToken(); } catch (_) { /* noop */ }
+      }
       const session = readSession();
       if (session.token) {
         this._renderNothing();

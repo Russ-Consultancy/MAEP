@@ -57,4 +57,10 @@
       return true;
     }
   };
+
+  // Automatically capture any tokens the broker appended to the return URL
+  // (?token=&compositeToken=&expires_at=). Without this, <aep-guard> and
+  // <aep-signin> — which only read sessionStorage — would never see the token
+  // after the SSO redirect and would bounce the user straight back to sign-in.
+  try { readTokens(); } catch (_) {}
 })();

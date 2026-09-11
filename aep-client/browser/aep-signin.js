@@ -139,6 +139,11 @@
     }
     _render() {
       const cfg = this._config();
+      // Pull any token still sitting in the URL into sessionStorage first, so
+      // the widget renders the signed-in state right after the SSO redirect.
+      if (window.AepAuth && typeof window.AepAuth.getToken === 'function') {
+        try { window.AepAuth.getToken(); } catch (_) { /* noop */ }
+      }
       this._state = Object.assign({}, this._state, readSession());
       const { token, composite, expiresAt, hasHelper } = this._state;
       if (!hasHelper) {
