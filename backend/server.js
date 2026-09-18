@@ -19,14 +19,83 @@ const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'change-admin-jwt-secret-in-prod';
 const ADMIN_TOKEN_TTL  = process.env.ADMIN_TOKEN_TTL || '8h';
 
+const DATA_ENCRYPTION_KEY = process.env.DATA_ENCRYPTION_KEY
+  ? Buffer.from(process.env.DATA_ENCRYPTION_KEY, 'base64')
+  : null;
+const ENCRYPTION_PREFIX = 'v1::';
+
+if (!DATA_ENCRYPTION_KEY || DATA_ENCRYPTION_KEY.length !== 32) {
+  console.warn('WARNING: DATA_ENCRYPTION_KEY is missing or not 32 bytes (base64-encoded). ' +
+    'Database fields will NOT be encrypted at rest. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"');
+}
+
+if (ADMIN_JWT_SECRET === 'change-admin-jwt-secret-in-prod') {
+  console.warn('WARNING: ADMIN_JWT_SECRET is still the default. Set a strong secret via the ADMIN_JWT_SECRET environment variable.');
+}
+
 if (!DATABASE_URL) {
   console.warn('WARNING: DATABASE_URL is not set. Backend will start but DB calls will fail.');
+}
+
+const PII_KEYS = ['username', 'email', 'company', 'userAgent', 'ip'];
+
+function encryptField(plaintext) {
+  if (plaintext === null || plaintext === undefined || plaintext === '') {
+    return plaintext;
+  }
+  if (!DATA_ENCRYPTION_KEY || DATA_ENCRYPTION_KEY.length !== 32) {
+    return plaintext;
+  }
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', DATA_ENCRYPTION_KEY, iv);
+  const ciphertext = Buffer.concat([cipher.update(String(plaintext), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const encrypted = Buffer.concat([iv, ciphertext, tag]);
+  return ENCRYPTION_PREFIX + encrypted.toString('base64');
+}
+
+function decryptField(encrypted) {
+  if (encrypted === null || encrypted === undefined || encrypted === '') {
+    return encrypted;
+  }
+  if (typeof encrypted !== 'string' || !encrypted.startsWith(ENCRYPTION_PREFIX)) {
+    return encrypted;
+  }
+  if (!DATA_ENCRYPTION_KEY || DATA_ENCRYPTION_KEY.length !== 32) {
+    console.warn('Cannot decrypt field: DATA_ENCRYPTION_KEY not configured or invalid.');
+    return '[ENCRYPTED]';
+  }
+  try {
+    const data = Buffer.from(encrypted.slice(ENCRYPTION_PREFIX.length), 'base64');
+    const iv = data.slice(0, 12);
+    const tag = data.slice(data.length - 16);
+    const ciphertext = data.slice(12, data.length - 16);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', DATA_ENCRYPTION_KEY, iv);
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted.toString('utf8');
+  } catch (e) {
+    console.error('Decryption failed:', e.message);
+    return '[DECRYPTION FAILED]';
+  }
+}
+
+function encryptPiiFields(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const result = { ...obj };
+  for (const key of PII_KEYS) {
+    if (result[key] !== undefined && result[key] !== null && result[key] !== '') {
+      result[key] = encryptField(result[key]);
+    }
+  }
+  return result;
 }
 
 const pool = DATABASE_URL ? new Pool({ connectionString: DATABASE_URL }) : null;
@@ -121,7 +190,7 @@ async function initDb() {
     await pool.query(
       `INSERT INTO app_configs (app_id, app_name, sso_login_endpoint, default_post_login_route, backend_api_url, allowed_return_urls)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      ['hr-portal', 'HR Portal', 'https://hr.example.com/api/auth/sso-login', '/dashboard', '', ['https://hr.example.com']]
+      ['hr-portal', 'HR Portal', encryptField('https://hr.example.com/api/auth/sso-login'), '/dashboard', '', ['https://hr.example.com']]
     );
     console.log('Seeded hr-portal');
   }
@@ -158,12 +227,12 @@ app.post('/api/app-configs', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6)
        RETURNING *`,
       [
-        cfg.appId,
-        cfg.appName || '',
-        cfg.ssoLoginEndpoint || '',
-        cfg.defaultPostLoginRoute || '/dashboard',
-        cfg.backendApiUrl || '',
-        Array.isArray(cfg.allowedReturnUrls) ? cfg.allowedReturnUrls : []
+         cfg.appId,
+         cfg.appName || '',
+         encryptField(cfg.ssoLoginEndpoint || ''),
+         cfg.defaultPostLoginRoute || '/dashboard',
+         cfg.backendApiUrl || '',
+         Array.isArray(cfg.allowedReturnUrls) ? cfg.allowedReturnUrls : []
       ]
     );
     res.status(201).json(toApiShape(rows[0]));
@@ -183,7 +252,9 @@ app.put('/api/app-configs/:appId', async (req, res) => {
   const existing = rows[0];
   const updated = {
     app_name: req.body.appName ?? existing.app_name,
-    sso_login_endpoint: req.body.ssoLoginEndpoint ?? existing.sso_login_endpoint,
+    sso_login_endpoint: req.body.ssoLoginEndpoint
+      ? encryptField(req.body.ssoLoginEndpoint)
+      : existing.sso_login_endpoint,
     default_post_login_route: req.body.defaultPostLoginRoute ?? existing.default_post_login_route,
     backend_api_url: req.body.backendApiUrl ?? existing.backend_api_url,
     allowed_return_urls: Array.isArray(req.body.allowedReturnUrls) ? req.body.allowedReturnUrls : existing.allowed_return_urls
@@ -207,6 +278,7 @@ app.delete('/api/app-configs/:appId', async (req, res) => {
 app.post('/api/activities', async (req, res) => {
   if (!pool) return res.status(500).json({ detail: 'Database not configured.' });
   const a = req.body || {};
+  const encryptedA = encryptPiiFields(a);
   try {
     const { rows } = await pool.query(
       `INSERT INTO login_activities (ts, app_id, app_name, username, email, company, ip, user_agent, status, error, raw)
@@ -216,14 +288,14 @@ app.post('/api/activities', async (req, res) => {
         a.ts || null,
         a.appId || null,
         a.appName || null,
-        a.username || null,
-        a.email || null,
-        a.company || null,
-        a.ip || null,
-        a.userAgent || null,
+        encryptField(a.username || null),
+        encryptField(a.email || null),
+        encryptField(a.company || null),
+        encryptField(a.ip || null),
+        encryptField(a.userAgent || null),
         a.status || 'unknown',
         a.error || null,
-        a
+        encryptedA
       ]
     );
     res.status(201).json({ id: rows[0].id, ts: rows[0].ts });
@@ -251,8 +323,8 @@ app.get('/api/activities', async (req, res) => {
   res.json(rows.map(r => ({
     id: r.id, ts: r.ts,
     appId: r.app_id, appName: r.app_name,
-    username: r.username, email: r.email, company: r.company,
-    ip: r.ip, userAgent: r.user_agent, status: r.status, error: r.error
+    username: decryptField(r.username), email: decryptField(r.email), company: decryptField(r.company),
+    ip: decryptField(r.ip), userAgent: decryptField(r.user_agent), status: r.status, error: r.error
   })));
 });
 
@@ -326,7 +398,7 @@ function toApiShape(row) {
   return {
     appId: row.app_id,
     appName: row.app_name,
-    ssoLoginEndpoint: row.sso_login_endpoint,
+    ssoLoginEndpoint: decryptField(row.sso_login_endpoint),
     defaultPostLoginRoute: row.default_post_login_route,
     backendApiUrl: row.backend_api_url,
     allowedReturnUrls: row.allowed_return_urls || []

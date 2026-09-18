@@ -43,7 +43,11 @@ See the **Repo layout** and **aep-wrapper** sections below.
 
 ```bash
 cd backend
-cp .env.example .env            # fill DATABASE_URL
+cp .env.example .env
+# Fill in: DATABASE_URL, ADMIN_JWT_SECRET, DATA_ENCRYPTION_KEY
+# Generate secrets:
+#   node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"  # for ADMIN_JWT_SECRET
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"  # for DATA_ENCRYPTION_KEY
 npm install
 npm start                       # :3000, auto-migrates schema + seeds hr-portal
 ```

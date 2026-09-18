@@ -30,8 +30,8 @@ export interface SsoLoginResponse {
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  isAuthenticated = signal<boolean>(!!localStorage.getItem('authToken'));
-  userRole = signal<string | null>(localStorage.getItem('userRole'));
+  isAuthenticated = signal<boolean>(!!sessionStorage.getItem('authToken'));
+  userRole = signal<string | null>(sessionStorage.getItem('userRole'));
 
   private activeApp: AppConfig | null = null;
   private readonly returnUrlKey = 'auth_return_url';
@@ -123,7 +123,7 @@ export class AuthService {
       );
       this.storeAppSession(response, email);
       if (givenName) {
-        localStorage.setItem('userDisplayName', givenName);
+        sessionStorage.setItem('userDisplayName', givenName);
       }
     } catch (err: any) {
       const detail = err?.error?.detail || err?.error?.message || err?.message || 'SSO login failed.';
@@ -161,7 +161,7 @@ export class AuthService {
   }
 
   getUsername(): string | null {
-    return localStorage.getItem('username') || 'Guest';
+    return sessionStorage.getItem('username') || 'Guest';
   }
 
   getUser(): any {
@@ -169,8 +169,8 @@ export class AuthService {
     if (claims) {
       return claims;
     }
-    const username = localStorage.getItem('username');
-    const displayName = localStorage.getItem('userDisplayName');
+    const username = sessionStorage.getItem('username');
+    const displayName = sessionStorage.getItem('userDisplayName');
     if (username || displayName) {
       return {
         preferred_username: username,
@@ -182,7 +182,7 @@ export class AuthService {
   }
 
   isSsoLogin(): boolean {
-    return localStorage.getItem('loginType') === 'sso';
+    return sessionStorage.getItem('loginType') === 'sso';
   }
 
   getUserRole(): string | null {
@@ -190,24 +190,24 @@ export class AuthService {
   }
 
   getUserCompany(): string | null {
-    return localStorage.getItem('userCompany');
+    return sessionStorage.getItem('userCompany');
   }
 
   getLastLogin(): string | null {
-    return localStorage.getItem('lastLogin');
+    return sessionStorage.getItem('lastLogin');
   }
 
   logout(): void {
     sessionStorage.removeItem(this.returnUrlKey);
     sessionStorage.removeItem(this.appIdKey);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
-    localStorage.removeItem('lastLogin');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userCompany');
-    localStorage.removeItem('userDisplayName');
-    localStorage.removeItem('loginType');
-    localStorage.removeItem('TOKEN_KEY');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('username');
+    sessionStorage.removeItem('lastLogin');
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('userCompany');
+    sessionStorage.removeItem('userDisplayName');
+    sessionStorage.removeItem('loginType');
+    sessionStorage.removeItem('TOKEN_KEY');
     this.isAuthenticated.set(false);
     this.userRole.set(null);
     if (this.oauthService.hasValidAccessToken()) {
@@ -292,7 +292,7 @@ export class AuthService {
       oidc: true
     };
     this.oauthService.configure(oidc);
-    this.oauthService.setStorage(localStorage);
+    this.oauthService.setStorage(sessionStorage);
     this.oauthService.setupAutomaticSilentRefresh();
   }
 
@@ -303,24 +303,24 @@ export class AuthService {
     const role = response.role || response.user?.role;
     const company = response.company || response.user?.company;
 
-    localStorage.setItem('authToken', response.access_token);
-    localStorage.setItem('username', userName);
+    sessionStorage.setItem('authToken', response.access_token);
+    sessionStorage.setItem('username', userName);
     if (lastLogin) {
-      localStorage.setItem('lastLogin', lastLogin);
+      sessionStorage.setItem('lastLogin', lastLogin);
     } else {
-      localStorage.removeItem('lastLogin');
+      sessionStorage.removeItem('lastLogin');
     }
     if (role) {
-      localStorage.setItem('userRole', role);
+      sessionStorage.setItem('userRole', role);
       this.userRole.set(role);
     }
     if (company) {
-      localStorage.setItem('userCompany', company);
+      sessionStorage.setItem('userCompany', company);
     }
     if (displayName) {
-      localStorage.setItem('userDisplayName', displayName);
+      sessionStorage.setItem('userDisplayName', displayName);
     }
-    localStorage.setItem('loginType', 'sso');
+    sessionStorage.setItem('loginType', 'sso');
     this.isAuthenticated.set(true);
   }
 
@@ -350,8 +350,8 @@ export class AuthService {
 
   private migrateLegacyToken(): void {
     const legacy = localStorage.getItem('TOKEN_KEY');
-    if (!localStorage.getItem('authToken') && legacy) {
-      localStorage.setItem('authToken', legacy);
+    if (!sessionStorage.getItem('authToken') && legacy) {
+      sessionStorage.setItem('authToken', legacy);
       localStorage.removeItem('TOKEN_KEY');
       this.isAuthenticated.set(true);
     }
