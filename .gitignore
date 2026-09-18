@@ -12,5 +12,6 @@ backend/data
 aep-client.log
 .vscode/
 .idea/
+.kilo/
 .DS_Store
 Thumbs.db
